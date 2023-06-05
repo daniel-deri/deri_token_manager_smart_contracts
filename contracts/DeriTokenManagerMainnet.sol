@@ -66,7 +66,7 @@ contract DeriTokenManager is Admin {
         IERC20(DeriAddress).approve(WormholeEthereum, type(uint256).max);
     }
 
-    function approveAll() public {
+    function approveAll() external {
         approveGateway();
         approveZkBridge();
         approveWormholeEthereum();
@@ -101,22 +101,22 @@ contract DeriTokenManager is Admin {
         IERC20(token).transfer(msg.sender, amount);
     }
 
-    function setRewardPerSecond(
+    function setRewardPerWeek(
         uint256 poolId,
-        uint256 rewardPerWeek
+        uint256 _rewardPerWeek
     ) external _onlyAdmin_ {
-        rewardPerWeeks[poolId] = rewardPerWeek;
+        rewardPerWeeks[poolId] = _rewardPerWeek;
     }
 
-    function setRewardPerSecond(
-        uint256[] calldata rewardPerWeek
+    function setRewardPerWeek(
+        uint256[] calldata _rewardPerWeek
     ) external _onlyAdmin_ {
-        for (uint256 i = 0; i < rewardPerWeek.length; i++) {
-            rewardPerWeeks[i] = rewardPerWeek[i];
+        for (uint256 i = 0; i < _rewardPerWeek.length; i++) {
+            rewardPerWeeks[i] = _rewardPerWeek[i];
         }
     }
 
-    function bridgeAll(CrossChainDetails[] calldata details) external payable {
+    function bridgeAll(CrossChainDetails[] calldata details) public payable {
         // Bridge to each cross chain address
         for (uint256 i = 0; i < details.length; i++) {
             if (details[i].isArbitrum) {
@@ -177,38 +177,6 @@ contract DeriTokenManager is Admin {
         );
         // IERC20(DeriAddress).mint(address(this), totalAmount);
         // Bridge to each cross chain address
-        for (uint256 i = 0; i < details.length; i++) {
-            if (details[i].isArbitrum) {
-                IArbitrumTokenGateway(ArbitrumGatewayRouter).outboundTransfer{
-                    value: details[i]._value
-                }(
-                    details[i]._token,
-                    details[i]._to,
-                    rewardPerWeeks[details[i].poolId],
-                    details[i]._maxGas,
-                    details[i]._gasPriceBid,
-                    details[i]._data
-                );
-            } else {
-                IZksyncL1ERC20Bridge(ZksyncL1Bridge).deposit{
-                    value: details[i]._value
-                }(
-                    details[i]._l2Receiver,
-                    details[i]._l1Token,
-                    rewardPerWeeks[details[i].poolId],
-                    details[i]._l2TxGasLimit,
-                    details[i]._l2TxGasPerPubdataByte,
-                    details[i]._refundRecipient
-                );
-            }
-        }
-        // Bridge to BNB
-        if (rewardPerWeeks[3] > 0) {
-            IWormhole(WormholeEthereum).freeze(
-                rewardPerWeeks[3],
-                56,
-                WormholeBNB
-            );
-        }
+        this.bridgeAll{value: msg.value}(details);
     }
 }
